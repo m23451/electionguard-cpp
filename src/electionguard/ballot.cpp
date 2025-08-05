@@ -13,6 +13,12 @@
 #include <string>
 #include <unordered_map>
 
+#ifdef NAIJ_MODE
+#    include <fstream>
+#    include <iostream>
+#    include <vector>
+#endif
+
 using std::invalid_argument;
 using std::make_unique;
 using std::map;
@@ -69,8 +75,7 @@ namespace electionguard
 
         Impl(string objectId, uint64_t vote, bool isPlaceholderSelection /* = false */,
              string writeIn)
-            : vote(vote), isPlaceholderSelection(isPlaceholderSelection),
-              writeIn(move(writeIn))
+            : vote(vote), isPlaceholderSelection(isPlaceholderSelection), writeIn(move(writeIn))
         {
             this->object_id = move(objectId);
         }
@@ -78,8 +83,7 @@ namespace electionguard
         [[nodiscard]] unique_ptr<PlaintextBallotSelection::Impl> clone() const
         {
             return make_unique<PlaintextBallotSelection::Impl>(
-              this->object_id, this->vote, this->isPlaceholderSelection,
-              this->writeIn);
+              this->object_id, this->vote, this->isPlaceholderSelection, this->writeIn);
         }
     };
 
@@ -95,9 +99,9 @@ namespace electionguard
     {
     }
 
-    PlaintextBallotSelection::PlaintextBallotSelection(
-      string objectId, uint64_t vote, bool isPlaceholderSelection /* = false */,
-      string writeIn)
+    PlaintextBallotSelection::PlaintextBallotSelection(string objectId, uint64_t vote,
+                                                       bool isPlaceholderSelection /* = false */,
+                                                       string writeIn)
         : pimpl(new Impl(move(objectId), vote, isPlaceholderSelection, writeIn))
     {
     }
@@ -136,9 +140,8 @@ namespace electionguard
 
     std::unique_ptr<PlaintextBallotSelection> PlaintextBallotSelection::clone() const
     {
-        return make_unique<PlaintextBallotSelection>(
-          pimpl->object_id, pimpl->vote, pimpl->isPlaceholderSelection,
-          pimpl->writeIn);
+        return make_unique<PlaintextBallotSelection>(pimpl->object_id, pimpl->vote,
+                                                     pimpl->isPlaceholderSelection, pimpl->writeIn);
     }
 
 #pragma endregion
@@ -310,9 +313,8 @@ namespace electionguard
 
     unique_ptr<CiphertextBallotSelection> CiphertextBallotSelection::make_with_precomputed(
       const std::string &objectId, uint64_t sequenceOrder, const ElementModQ &descriptionHash,
-      unique_ptr<ElGamalCiphertext> ciphertext,
-      const ElementModQ &cryptoExtendedBaseHash, uint64_t plaintext,
-      unique_ptr<TwoTriplesAndAQuadruple> precomputedTwoTriplesAndAQuad,
+      unique_ptr<ElGamalCiphertext> ciphertext, const ElementModQ &cryptoExtendedBaseHash,
+      uint64_t plaintext, unique_ptr<TwoTriplesAndAQuadruple> precomputedTwoTriplesAndAQuad,
       bool isPlaceholder /* = false */, bool computeProof /* = true */,
       unique_ptr<ElementModQ> cryptoHash /* = nullptr */,
       unique_ptr<ElGamalCiphertext> extendedData /* = nullptr */)
@@ -330,14 +332,12 @@ namespace electionguard
         unique_ptr<DisjunctiveChaumPedersenProof> proof = nullptr;
         if (computeProof) {
             // always make a proof using the faster, non-deterministic method
-            proof = DisjunctiveChaumPedersenProof::make_with_precomputed(*ciphertext,
-                                                    move(precomputedTwoTriplesAndAQuad),
-                                                    cryptoExtendedBaseHash, plaintext);
+            proof = DisjunctiveChaumPedersenProof::make_with_precomputed(
+              *ciphertext, move(precomputedTwoTriplesAndAQuad), cryptoExtendedBaseHash, plaintext);
         }
 
         return make_unique<CiphertextBallotSelection>(
-          objectId, sequenceOrder, descriptionHash, move(ciphertext), isPlaceholder,
-          move(nonce),
+          objectId, sequenceOrder, descriptionHash, move(ciphertext), isPlaceholder, move(nonce),
           move(cryptoHash), move(proof), move(extendedData));
 
         return result;
@@ -463,10 +463,9 @@ namespace electionguard
 
     eg_valid_contest_return_type_t
     PlaintextBallotContest::isValid(const string &expectedObjectId,
-                                         uint64_t expectedNumberSelections,
-                                         uint64_t expectedNumberElected,
-                                         uint64_t votesAllowd, /* = 0 */
-                                         bool supportOvervotes /* = true */) const
+                                    uint64_t expectedNumberSelections,
+                                    uint64_t expectedNumberElected, uint64_t votesAllowd, /* = 0 */
+                                    bool supportOvervotes /* = true */) const
     {
         if (pimpl->object_id != expectedObjectId) {
             Log::info(": invalid objectId");
@@ -1247,5 +1246,68 @@ namespace electionguard
     }
 
 #pragma endregion
+
+#ifdef NAIJ_MODE
+    /**
+* Save an encrypted ballot to local storage for offline use in Nigerian elections.
+* Allows ballots to be securely transferred later (e.g., via USB or SD card).
+*/
+    bool saveEncryptedBallotOffline(const CiphertextBallot &ballot, const std::string &path)
+    {
+        try {
+            auto serialized = ballot.toBson(true); // true = include nonces if needed
+
+            std::ofstream file(path, std::ios::binary);
+            if (!file.is_open()) {
+                Log::error("Failed to open file for saving encrypted ballot: " + path);
+                return false;
+            }
+
+            file.write(reinterpret_cast<const char *>(serialized.data()), serialized.size());
+            file.close();
+
+            Log::info("Encrypted ballot successfully saved offline: " + path);
+            return true;
+        } catch (const std::exception &e) {
+            Log::error(std::string("Error saving encrypted ballot offline: ") + e.what());
+            return false;
+        }
+    }
+
+    /**
+  * Load and verify an encrypted ballot from local offline storage.
+  */
+    bool verifyOfflineBallot(const std::string &path)
+    {
+        try {
+            std::ifstream file(path, std::ios::binary);
+            if (!file.is_open()) {
+                Log::error("Failed to open ballot file for verification: " + path);
+                return false;
+            }
+
+            std::vector<uint8_t> buffer((std::istreambuf_iterator<char>(file)),
+                                        std::istreambuf_iterator<char>());
+            file.close();
+
+            auto ballot = CiphertextBallot::fromBson(std::move(buffer));
+            if (!ballot) {
+                Log::error("Failed to deserialize ballot from BSON.");
+                return false;
+            }
+
+            if (ballot->getContests().empty()) {
+                Log::warn("Offline ballot appears empty.");
+                return false;
+            }
+
+            Log::info("Offline ballot loaded and appears valid.");
+            return true;
+        } catch (const std::exception &e) {
+            Log::error(std::string("Error verifying offline ballot: ") + e.what());
+            return false;
+        }
+    }
+#endif
 
 } // namespace electionguard

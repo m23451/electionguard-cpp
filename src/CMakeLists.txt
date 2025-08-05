@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.14...3.16 FATAL_ERROR)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 
 # ---- Dependencies ----
-include(../cmake/CPM.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/CPM_0.31.0.cmake)
 
 CPMAddPackage(
     NAME date
@@ -175,6 +175,7 @@ target_include_directories(${META_PROJECT_TARGET}
     # Headers used from /build
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/src/${META_PROJECT_TARGET}
     ${PROJECT_SOURCE_DIR}/src/karamel
 )

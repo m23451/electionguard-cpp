@@ -21,7 +21,7 @@ endfunction()
 
 # ---- Dependencies ----
 
-include(cmake/CPM.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM_0.31.0.cmake)
 
 CPMAddPackage(
     NAME StableCoder-cmake-scripts

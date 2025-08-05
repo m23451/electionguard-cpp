@@ -3,7 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/_deps/nlohmann_json-src/include",
+                "${workspaceFolder}/third_party/json/single_include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
@@ -41,8 +43,9 @@
         {
             "name": "Win64",
             "includePath": [
-                "${workspaceFolder}/**",
-                "C:\\msys64\\mingw64\\include"
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/src",
+                "C:/msys64/mingw64/include"
             ],
             "defines": [
                 "_DEBUG",
@@ -50,13 +53,15 @@
                 "_UNICODE"
             ],
             "windowsSdkVersion": "10.0.18362.0",
-            "compilerPath": "C:\\msys64\\mingw64\\bin\\gcc.exe",
+            "compilerPath": "C:/msys64/mingw64/bin/g++.exe",
             "cStandard": "c11",
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64",
             "browse": {
                 "path": [
-                    "C:\\msys64\\mingw64\\include"
+                    "${workspaceFolder}/include",
+                    "${workspaceFolder}/src",
+                    "C:/msys64/mingw64/include"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""

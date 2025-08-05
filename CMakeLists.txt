@@ -42,6 +42,14 @@ option(CODE_COVERAGE             "Use code coverage"                            
 option(OPTION_GENERATE_DOCS      "Generate documentation"                                    OFF)
 option(USE_DYNAMIC_ANALYSIS      "Enable Dynamic tools"                                      OFF)
 
+# ---- Naij-Specific ----
+option(NAIJ_MODE "Enable Nigeria-specific adaptations" ON)
+
+if(NAIJ_MODE)
+    message("++ NAIJ Mode enabled: Offline support, local languages, flexible quorum")
+    add_compile_definitions(NAIJ_MODE)
+endif()
+
 # ---- Modules ----
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -131,3 +139,4 @@ endif()
 if (OPTION_GENERATE_DOCS)
     add_subdirectory(docs)
 endif()
+
